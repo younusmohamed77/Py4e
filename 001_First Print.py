@@ -1,0 +1,1 @@
+print("!.dlorW olleH")i
