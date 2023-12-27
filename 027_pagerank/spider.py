@@ -14,6 +14,11 @@ ctx.verify_mode = ssl.CERT_NONE
 conn = sqlite3.connect('spider.sqlite')
 cur = conn.cursor()
 
+cur.executescript('''
+DROP TABLE IF EXISTS Pages;
+DROP TABLE IF EXISTS Links;
+DROP TABLE IF EXISTS Webs''')
+
 cur.execute('''CREATE TABLE IF NOT EXISTS Pages
     (id INTEGER PRIMARY KEY, url TEXT UNIQUE, html TEXT,
      error INTEGER, old_rank REAL, new_rank REAL)''')
@@ -24,7 +29,7 @@ cur.execute('''CREATE TABLE IF NOT EXISTS Links
 cur.execute('''CREATE TABLE IF NOT EXISTS Webs (url TEXT UNIQUE)''')
 
 # Check to see if we are already in progress...
-cur.execute('SELECT id,url FROM Pages WHERE html is NULL and error is NULL ORDER BY RANDOM() LIMIT 1')
+#cur.execute('SELECT id,url FROM Pages WHERE html is NULL and error is NULL ORDER BY RANDOM() LIMIT 1')
 row = cur.fetchone()
 if row is not None:
     print("Restarting existing crawl.  Remove spider.sqlite to start a fresh crawl.")
@@ -61,6 +66,7 @@ while True:
     cur.execute('SELECT id,url FROM Pages WHERE html is NULL and error is NULL ORDER BY RANDOM() LIMIT 1')
     try:
         row = cur.fetchone()
+#         print("Row :", row)
         # print row
         fromid = row[0]
         url = row[1]
@@ -106,28 +112,31 @@ while True:
 
     # Retrieve all of the anchor tags
     tags = soup('a')
+#     print("Tags:",tags)
     count = 0
     for tag in tags:
+#         print("Tag:", tag)
         href = tag.get('href', None)
         if ( href is None ) : continue
         # Resolve relative references like href="/contact"
         up = urlparse(href)
+#         print("UP:", up)
         if ( len(up.scheme) < 1 ) :
             href = urljoin(url, href)
         ipos = href.find('#')
         if ( ipos > 1 ) : href = href[:ipos]
         if ( href.endswith('.png') or href.endswith('.jpg') or href.endswith('.gif') ) : continue
         if ( href.endswith('/') ) : href = href[:-1]
-        # print href
+#         print("HREF:", href)
         if ( len(href) < 1 ) : continue
 
 		# Check if the URL is in any of the webs
-        found = False
-        for web in webs:
-            if ( href.startswith(web) ) :
-                found = True
-                break
-        if not found : continue
+#         found = False
+#         for web in webs:
+#             if ( href.startswith(web) ) :
+#                 found = True
+#                 break
+#         if not found : continue
 
         cur.execute('INSERT OR IGNORE INTO Pages (url, html, new_rank) VALUES ( ?, NULL, 1.0 )', ( href, ) )
         count = count + 1
@@ -147,3 +156,4 @@ while True:
     print(count)
 
 cur.close()
+conn.close()
